@@ -1,100 +1,82 @@
-import os
+from hashlib import sha256
+from pathlib import Path
+
 import cv2
 import numpy as np
 import streamlit as st
-from streamlit.scriptrunner import get_script_run_ctx as get_report_ctx
-from streamlit.server.server import Server
-from streamlit_image_comparison import image_comparison
-from algorithm import *
 
-st.set_page_config(
-     page_title="图像超分辨率",
-     layout="wide",
-     initial_sidebar_state="auto",
-)
+from algorithm import INTERPOLATIONS, MODELS, resize_im
+from comparison import show_comparison
+from workspace_ui import render_page
 
-st.sidebar.title("欢迎使用我们为你制作的图像超分小工具♥️")
+MAX_OUTPUT_PIXELS = 24_000_000
 
-st.sidebar.markdown("---")
-st.sidebar.success('"**_I hope this simple tool can help you better view pictures or videos_**."\n\n"**_If it can really bring you even a little help_**, **_it will be my greatest honor!_**"\n\n--**_All the members of the team_**')
+render_page("图像超分辨率", "上传图片，选择算法和倍率，再拖动滑块比较处理前后的效果。", "📸")
+controls, preview = st.columns([1, 2], gap="large")
 
-st.balloons()
+with controls, st.container(border=True):
+    st.subheader("上传与设置")
+    uploaded = st.file_uploader("上传图片", type=["png", "jpg", "jpeg", "gif"])
+    st.caption("支持 PNG、JPEG 和 GIF。GIF 仅处理首帧。")
+    method = st.selectbox("增强算法", [*MODELS, *INTERPOLATIONS])
+    scale = st.selectbox(
+        "放大倍率",
+        [2, 3, 4] if method in MODELS else [2, 3, 4, 5, 6],
+        format_func=lambda value: f"{value}×",
+    )
+    process = st.button(
+        "开始增强", type="primary", disabled=uploaded is None, use_container_width=True
+    )
 
-session_id = get_report_ctx().session_id
-sessions = Server.get_current()._session_info_by_id
-session_ws = sessions[session_id].ws
-st.sidebar.info(f'当前在线人数：{len(sessions)}')
+with preview, st.container(border=True):
+    st.subheader("效果预览")
+    if uploaded is None:
+        st.session_state.pop("image_result", None)
+        st.html('<div class="sr-empty">上传图片后在这里预览</div>')
+        st.stop()
 
-st.sidebar.write("---")
-st.sidebar.caption("""You can check out the source code [here](https://github.com/JennieJisooBabe/Super_Resolution).""")
-st.sidebar.caption("""You can access streamlit cloud share [here](https://jenniejisoobabe-super-resolution-0--9hs3ti.streamlit.app/).""")
-st.sidebar.write("---")
+    source = uploaded.getvalue()
+    key = (sha256(source).hexdigest(), method, scale)
+    result = st.session_state.get("image_result")
+    if result is not None and result["key"] != key:
+        st.session_state.pop("image_result")
+        result = None
+    try:
+        original = cv2.imdecode(np.frombuffer(source, np.uint8), cv2.IMREAD_COLOR)
+    except cv2.error:
+        original = None
+    if original is None:
+        st.error("无法读取这张图片，请尝试上传其他文件。")
+        st.stop()
 
-def is_im(file_name):
-  suffix = file_name.split('.')[-1]
-  if suffix in ['png', 'jpg','JPG', 'jpeg', 'gif']:
-    return True
-  return False
+    height, width = original.shape[:2]
+    if process:
+        if width * height * scale ** 2 > MAX_OUTPUT_PIXELS:
+            st.error("输出将超过 2400 万像素，请降低放大倍率或上传较小的图片。")
+        else:
+            try:
+                with st.spinner("正在增强图像…"):
+                    enhanced = resize_im(original, scale, method)
+                    encoded_ok, encoded = cv2.imencode(".png", enhanced)
+                    if not encoded_ok:
+                        raise ValueError("PNG encoding failed")
+                    result = {"key": key, "bytes": encoded.tobytes()}
+                    st.session_state.image_result = result
+            except (cv2.error, ValueError):
+                st.error("图像处理失败，请尝试较低倍率或其他算法。")
 
-st.title('图像超分辨率')
-
-uploaded_file = st.file_uploader("请上传图片文件")
-if uploaded_file is not None:
-    file_name = uploaded_file.name
-    if is_im(file_name):
-      bytes_data = uploaded_file.getvalue()
-
-      try:
-        im = cv2.imdecode(np.frombuffer(bytes_data, np.uint8), cv2.IMREAD_COLOR)
-        img_result = cv2.resize(im,(0,0),fx=0.3,fy=0.3)
-        img111 = cv2.cvtColor(img_result,cv2.COLOR_BGR2RGB)
-        st.image(img_result, channels="BGR",width=600)
-      except Exception:
-        e = RuntimeError('文件上传出错，请重试！')
-        st.exception(e)
-      st.write('图片尺寸')
-      st.write(im.shape)
-
-      option = st.selectbox(
-          '选择你需要的算法',
-          ('最近邻插值算法', '双线性插值算法','双三次插值算法',
-          'ESPCN深度学习算法', 'FSRCNN深度学习算法' , 'AttnSRCNN深度学习算法'))
-
-      if option in ['ESPCN深度学习算法', 'FSRCNN深度学习算法', 'AttnSRCNN深度学习算法']:
-        zoom_factor = st.number_input('请输入超分辨率的缩放因子, 目前深度学习算法只支持2-4倍', min_value = 2, max_value = 4, step = 1, format='%d')
-      else:
-        zoom_factor = st.number_input('请输入超分辨率的缩放因子, 目前深度学习算法只支持2-4倍', min_value = 2, max_value = 6, step = 1, format='%d')
-      
-      if st.button('生成图像'):
-        with st.spinner("生成中，请稍等。"):
-          im_result  = resize_im(im,zoom_factor,option)
-          st.image(im_result, channels="BGR",width=600)
-          st.write(im_result.shape)
-          img222 = cv2.cvtColor(im_result,cv2.COLOR_BGR2RGB)
-
-          # 持久化到硬盘
-          cv2.imwrite("tmp.png", im_result)
-        st.success("生成成功，请下载。")
-        with open('tmp.png', 'rb') as file:
-          btn = st.download_button(
-              label="下载图像",
-              data=file,
-              file_name=f"{file_name.split()[0]}",
-              mime="image/png"
-            )
-        st.subheader("超分效果对比")
-        image_comparison(
-            img1=cv2.cvtColor(img_result,cv2.COLOR_BGR2RGB),
-            img2=cv2.cvtColor(im_result,cv2.COLOR_BGR2RGB),
-            label1="原图",
-            label2="超分图",
-        )
-        os.remove("tmp.png")
+    if result is None:
+        st.image(original, channels="BGR", caption=f"原图 · {width} × {height}", width="stretch")
     else:
-      st.error('请上传图像文件', icon="🚨")
-
-
-# cd E:\系统默认\桌面\挑战者杯\竞赛材料\图像视频超分辨率代码
-# streamlit run E:\系统默认\桌面\挑战者杯\竞赛材料\图像视频超分辨率代码\0📸_图像超分辨率.py
-
-
+        enhanced = cv2.imdecode(np.frombuffer(result["bytes"], np.uint8), cv2.IMREAD_COLOR)
+        out_height, out_width = enhanced.shape[:2]
+        show_comparison(original, enhanced)
+        st.html(f'<p class="sr-sizes">{width} × {height} → {out_width} × {out_height}</p>')
+        st.download_button(
+            "下载增强图像",
+            data=result["bytes"],
+            file_name=f"{Path(uploaded.name).stem}_{scale}x.png",
+            mime="image/png",
+            on_click="ignore",
+            type="primary",
+        )

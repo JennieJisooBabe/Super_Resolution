@@ -1,0 +1,97 @@
+[data-testid="stMainBlockContainer"] {
+  max-width: 1300px;
+  padding-top: 4.3rem;
+  padding-bottom: 3rem;
+}
+[data-testid="stSidebar"] {
+  border-right: 1px solid #e5eaf3;
+}
+[data-testid="stSidebarNav"]::before {
+  content: "超分辨率工作台";
+  display: block;
+  color: #172033;
+  font-size: 1.03rem;
+  font-weight: 700;
+  padding: .65rem 1.35rem .65rem;
+}
+[data-testid="stSidebarNav"] a[aria-current="page"] {
+  background: #e9f1ff;
+  color: #174fca;
+  font-weight: 700;
+}
+[data-testid="stSidebarNav"] a[aria-current="page"] span {
+  color: inherit;
+}
+[data-testid="stVerticalBlockBorderWrapper"] {
+  min-width: 0;
+}
+div[data-testid="stVerticalBlockBorderWrapper"] > div[style] {
+  background: #fff;
+}
+[data-testid="stFileUploaderDropzone"] {
+  border: 1px dashed #a7bce1;
+  background: #f6f9ff;
+  border-radius: .7rem;
+}
+[data-testid="stHeadingWithActionElements"] h1 {
+  font-size: clamp(2rem, 5vw, 3.15rem);
+  letter-spacing: -.035em;
+  line-height: 1.16;
+}
+.sr-subtitle {
+  margin: 0 0 .7rem;
+  color: #52647e;
+  font-size: 1rem;
+}
+.sr-online {
+  display: flex;
+  align-items: center;
+  gap: .55rem;
+  padding: .65rem .8rem;
+  border: 1px solid #dce7fa;
+  border-radius: .7rem;
+  background: #f6f9ff;
+  color: #344660;
+  font-size: .88rem;
+}
+.sr-online strong {
+  margin-left: auto;
+  color: #174fca;
+}
+.sr-dot {
+  width: .48rem;
+  height: .48rem;
+  border-radius: 50%;
+  background: #168353;
+}
+.sr-empty {
+  display: grid;
+  place-items: center;
+  min-height: 18rem;
+  padding: 1.25rem;
+  text-align: center;
+  background: #f4f7fc;
+  border: 1px dashed #c9d7eb;
+  border-radius: .8rem;
+  color: #52647e;
+}
+.sr-sizes {
+  color: #174fca;
+  font-weight: 700;
+  margin: .15rem 0;
+}
+@media (max-width: 760px) {
+  [data-testid="stMainBlockContainer"] {
+    padding-top: 3.4rem;
+  }
+  [data-testid="stHorizontalBlock"] {
+    flex-wrap: wrap;
+  }
+  [data-testid="stColumn"] {
+    flex: 1 1 100% !important;
+    width: 100% !important;
+  }
+  .sr-empty {
+    min-height: 11rem;
+  }
+}
