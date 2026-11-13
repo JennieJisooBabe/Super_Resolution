@@ -1,109 +1,100 @@
+from hashlib import sha256
+from pathlib import Path
+
 import streamlit as st
-import numpy as np
-from algorithm import *
-import tempfile
-from streamlit.scriptrunner import get_script_run_ctx as get_report_ctx
-from streamlit.server.server import Server
-import os
 
-st.set_page_config(
-     page_title="视频超分辨率",
-     layout="wide",
-     initial_sidebar_state="auto",
-)
+from algorithm import FFMPEG_FILTERS
+from video_processing import enhance_video
+from workspace_ui import render_page
 
-st.sidebar.title("欢迎使用我们为你制作的图像超分小工具♥️")
+RESOLUTIONS = {
+    "720p · 1280 × 720": (1280, 720),
+    "1080p · 1920 × 1080": (1920, 1080),
+    "1440p · 2560 × 1440": (2560, 1440),
+    "4K · 3840 × 2160": (3840, 2160),
+}
+VIDEO_FORMATS = ["mp4", "mov", "avi", "wmv", "mpg", "mpeg"]
 
-st.sidebar.markdown("---")
-st.sidebar.success('"**_I hope this simple tool can help you better view pictures or videos_**."\n\n"**_If it can really bring you even a little help_**, **_it will be my greatest honor!_**"\n\n--**_All the members of the team_**')
+render_page("视频超分辨率", "选择输出分辨率，将视频放大并导出为 MP4。", "📽")
+controls, preview = st.columns([1, 2], gap="large")
 
-st.balloons()
+with controls, st.container(border=True):
+    st.subheader("上传与设置")
+    uploaded = st.file_uploader("上传视频", type=VIDEO_FORMATS)
+    st.caption("支持 MP4、MOV、AVI、WMV、MPG 和 MPEG。")
+    method = st.selectbox("缩放算法", list(FFMPEG_FILTERS), index=2)
+    resolution_label = st.selectbox("输出分辨率", list(RESOLUTIONS))
+    st.caption("保留画面比例，必要时补黑边。分辨率越高，处理时间越长。")
+    process = st.button(
+        "开始增强", type="primary", disabled=uploaded is None, use_container_width=True
+    )
 
-session_id = get_report_ctx().session_id
-sessions = Server.get_current()._session_info_by_id
-session_ws = sessions[session_id].ws
-st.sidebar.info(f'当前在线人数：{len(sessions)}')
+with preview, st.container(border=True):
+    st.subheader("视频预览")
+    if uploaded is None:
+        st.session_state.pop("video_result", None)
+        st.html('<div class="sr-empty">上传视频后在这里查看进度和结果</div>')
+        st.stop()
 
-st.sidebar.write("---")
-st.sidebar.caption("""You can check out the source code [here](https://github.com/JennieJisooBabe/Super_Resolution).""")
-st.sidebar.caption("""You can access streamlit cloud share [here](https://jenniejisoobabe-super-resolution-0--9hs3ti.streamlit.app/).""")
-st.sidebar.write("---")
+    source = uploaded.getvalue()
+    suffix = Path(uploaded.name).suffix.lower()
+    key = (sha256(source).hexdigest(), method, resolution_label)
+    result = st.session_state.get("video_result")
+    if result is not None and result["key"] != key:
+        st.session_state.pop("video_result")
+        result = None
 
+    if process:
+        status = st.status("正在读取视频…", expanded=True)
+        progress = status.empty()
 
-tmp_dict = {'1280*720 [720P]':(1280, 720), '1920*1080 [1080P]':(1920, 1080),
-          '2560*1440 [2k]':(2560, 1440),'3840*2160 [4k]':(3840, 2160)}
+        def update(stage, seconds, duration):
+            if stage == "导出视频":
+                status.update(label="正在准备下载…")
+                progress.progress(100, text="读取视频 → 增强帧 → 导出视频")
+            elif duration:
+                percent = min(99, int(100 * seconds / duration))
+                status.update(label="正在增强视频…")
+                progress.progress(percent, text=f"增强帧 · {percent}%")
+            else:
+                status.update(label="正在增强视频…")
+                progress.caption(f"已处理 {seconds:.1f} 秒")
 
-def is_video(file_name):
-  suffix = file_name.split('.')[-1]
-  if suffix in ['avi', 'wmv', 'mpg', 'mpeg', 'mov','mp4']:
-    return True
-  return False
-
-image_placeholder = st.empty()
-st.title('视频超分辨率')
-
-uploaded_file = st.file_uploader("请上传视频文件")
-if uploaded_file is not None:
-    file_name = uploaded_file.name
-
-    if is_video(file_name):
-      try:
-        st.video(uploaded_file.getvalue())
-      except Exception:
-        e = RuntimeError('文件上传出错，请重试！')
-        st.exception(e)
-      option = st.selectbox(
-          '选择你需要的算法',
-          ('最近邻插值算法', '双线性插值算法','双三次插值算法','ESPCN深度学习算法','FSRCNN深度学习算法','AttnSRCNN深度学习算法'))
-
-      resoultion_str = st.selectbox(
-          '选择视频输出分辨率',
-          ('1280*720 [720P]', '1920*1080 [1080P]',
-          '2560*1440 [2k]','3840*2160 [4k]'))
-
-      resoultion = tmp_dict[resoultion_str]
-
-      if st.button('生成视频'):
-        with st.spinner("生成中，请稍等。"):
-          tfile = tempfile.NamedTemporaryFile(delete=False)
-          tfile.write(uploaded_file.read())
-
-          cap = cv2.VideoCapture(tfile.name) #读取视频内容
-
-          fourcc = cv2.VideoWriter_fourcc(*'XVID') #指定视频编码格式
-
-          out_file_name = f'{file_name.split(".")[0]}.avi'
-
-          out = cv2.VideoWriter(out_file_name, fourcc, 5, resoultion) #保存图像为视频
-
-          frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT)) #获取视频帧数
-
-          my_bar = st.progress(0) #显示进度条
-          percent_complete = 0
-          while cap.isOpened():
-              ret, frame = cap.read()
-              if ret:
-                  b = resize_video(frame, resoultion, option)
-                  out.write(b)
-                  my_bar.progress(percent_complete/frame_count)
-                  percent_complete = percent_complete + 1
-
-              else:
-                  cap.release()
-                  out.release()
-
-        st.success('生成成功，请下载。')
-
-        with open(out_file_name, 'rb') as file:
-          btn = st.download_button(
-              label="Download Video",
-              data=file,
-              file_name=out_file_name,
-              mime="application/octet-stream"
+        try:
+            data, original_size, duration = enhance_video(
+                source, suffix, RESOLUTIONS[resolution_label], method, update
             )
+        except (OSError, RuntimeError, ValueError):
+            status.update(label="视频处理失败", state="error", expanded=False)
+            st.error("请尝试上传较短的 MP4，或选择较低的输出分辨率。")
+        else:
+            result = {
+                "key": key, "bytes": data, "original_size": original_size, "duration": duration
+            }
+            st.session_state.video_result = result
+            status.update(label="视频已处理完成", state="complete", expanded=False)
 
-        os.remove(out_file_name)
+    options = ["增强视频", "原视频"] if result is not None else ["原视频"]
+    selected = st.radio("预览内容", options, horizontal=True, label_visibility="collapsed")
+    if selected == "增强视频":
+        st.video(result["bytes"], format="video/mp4")
+    elif suffix in {".mp4", ".mov"}:
+        st.video(source, format="video/quicktime" if suffix == ".mov" else "video/mp4")
+        st.caption("原视频能否播放取决于浏览器和原文件编码。")
     else:
-      st.error('请上传视频文件', icon="🚨")
-       
- 
+        st.info("已上传原视频。处理完成后可在这里播放 MP4 结果。")
+
+    if result is not None:
+        width, height = result["original_size"]
+        out_width, out_height = RESOLUTIONS[resolution_label]
+        st.html(f'<p class="sr-sizes">{width} × {height} → {out_width} × {out_height}</p>')
+        if result["duration"]:
+            st.caption(f'原视频时长约 {result["duration"]:.1f} 秒')
+        st.download_button(
+            "下载增强视频",
+            data=result["bytes"],
+            file_name=f"{Path(uploaded.name).stem}_{out_height}p.mp4",
+            mime="video/mp4",
+            on_click="ignore",
+            type="primary",
+        )

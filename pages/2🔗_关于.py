@@ -1,81 +1,46 @@
 import streamlit as st
-from streamlit.scriptrunner import get_script_run_ctx as get_report_ctx
-from streamlit.server.server import Server
 
-st.set_page_config(
-     page_title="关于",
-     layout="wide",
-     initial_sidebar_state="auto",
-)
+from workspace_ui import IMAGE_PAGE, VIDEO_PAGE, render_page
 
-st.sidebar.title("欢迎使用我们为你制作的图像超分小工具♥️")
+render_page("关于", "了解超分辨率工作台的功能、算法和参考文献。", "🔗")
 
-st.sidebar.markdown("---")
-st.sidebar.success('"**_I hope this simple tool can help you better view pictures or videos_**."\n\n"**_If it can really bring you even a little help_**, **_it will be my greatest honor!_**"\n\n--**_All the members of the team_**')
+with st.container(border=True):
+    st.subheader("项目简介")
+    st.write("上传低分辨率的图片或视频，选择放大参数，预览并下载处理结果。")
+    image_link, video_link = st.columns(2)
+    with image_link:
+        st.page_link(IMAGE_PAGE, label="处理图像", icon="📸")
+    with video_link:
+        st.page_link(VIDEO_PAGE, label="处理视频", icon="📽")
 
-st.balloons()
+with st.container(border=True):
+    st.subheader("功能与使用")
+    st.markdown(
+        "- **图像超分辨率**：支持 ESPCN、FSRCNN 和三种插值算法。"
+        "拖动滑块对比原图和增强图，下载 PNG。\n"
+        "- **视频超分辨率**：用最近邻、双线性或双三次插值放大视频，"
+        "预览并下载 MP4。"
+    )
 
-session_id = get_report_ctx().session_id
-sessions = Server.get_current()._session_info_by_id
-session_ws = sessions[session_id].ws
-st.sidebar.info(f'当前在线人数：{len(sessions)}')
+with st.container(border=True):
+    st.subheader("使用提示")
+    st.write("放大可以提高输出分辨率，细节效果取决于原素材和所选算法。"
+             "处理时间会随输出尺寸和视频时长增加。")
+    st.caption("左侧在线人数按当前连接的浏览器会话统计。")
 
-st.sidebar.write("---")
-st.sidebar.caption("""You can check out the source code [here](https://github.com/JennieJisooBabe/Super_Resolution).""")
-st.sidebar.caption("""You can access streamlit cloud share [here](https://jenniejisoobabe-super-resolution-0--9hs3ti.streamlit.app/).""")
-st.sidebar.write("---")
+with st.container(border=True):
+    st.subheader("参考文献")
+    st.markdown(
+        "1. [Real-Time Single Image and Video Super-Resolution Using an Efficient "
+        "Sub-Pixel Convolutional Neural Network](https://arxiv.org/pdf/1609.05158.pdf)\n"
+        "2. [Accelerating the Super-Resolution Convolutional Neural Network]"
+        "(https://mmlab.ie.cuhk.edu.hk/projects/FSRCNN.html)\n"
+        "3. [Deep Laplacian Pyramid Networks for Fast and Accurate Super-Resolution]"
+        "(https://arxiv.org/pdf/1704.03915.pdf)\n"
+        "4. [Enhanced Deep Residual Networks for Single Image Super-Resolution]"
+        "(https://arxiv.org/pdf/1707.02921.pdf)"
+    )
 
-st.title('Thank you for your use and wish you all the best！')
-st.header('Hope you experience well.')
-st.subheader('Following content also hopes you to know.')
-
-st.header('网站制作者们🧑‍💻')
-col1, col2, col3 = st.columns([2,2,2])
-with col1:
-   st.subheader("乔一鸣")
-   st.image('qym.png',width=150)
-   st.write("**from: 20软件一班**")
-   st.write("**他没什么想说的......**")
-with col2:
-   st.subheader("何宇青")
-   st.image('hyq.png',width=150)
-   st.write("**from: 20大数据二班**")
-   st.write("**大家好，我叫何宇青，我的名字是何宇青，现在给大家做自我介绍**\n\n**的是来自20大数据二班的何宇青，希望大家能记住我叫何宇青。**")
-with col3:
-   st.subheader("罗怡纯")
-   st.image('lyc.png',width=150)
-   st.write("**from: 20软件一班**")
-   st.write("**只管走过去，不必逗留着采了花朵来保存，因为一路上花朵自会继续开放的。**")
-col4, col5, col6 = st.columns([2,2,2])
-with col4:
-   st.subheader("张钰娟")
-   st.image('zyj.png',width=150)
-   st.write("**from: 21软嵌班**")
-   st.write("**超级无敌大帅哥**")
-with col5:
-   st.subheader("王政豪")
-   st.image('wzh.png',width=150)
-   st.write("**from: 20计一班**")
-   st.write("**人生只有贪心，没有动态规划。**")
-with col6:
-   st.subheader("冯意")
-   st.image('fy.png',width=150)
-   st.write("**from: 20计二班**")
-   st.write("**兴趣爱好：编程，羽毛球，音乐。**")
-
-st.header('超分算法参考文献📋')
-st.subheader('Real-Time Single Image and Video Super-Resolution Using an Efficient Sub-Pixel Convolutional Neural Network')
-st.caption('https://arxiv.org/pdf/1609.05158.pdf')
-st.subheader('Accelerating the Super-Resolution Convolutional Neural Network')
-st.caption('http://mmlab.ie.cuhk.edu.hk/projects/FSRCNN.html')
-st.subheader('Deep Laplacian Pyramid Networks for Fast and Accurate Super-Resolution')
-st.caption('https://arxiv.org/pdf/1704.03915.pdf')
-st.subheader('Enhanced Deep Residual Networks for Single Image Super-Resolution')
-st.caption('https://arxiv.org/pdf/1707.02921.pdf')
-
-# from streamlit_disqus import st_disqus
-#
-# st_disqus("streamlit-disqus-demo")
-
-st.warning('欢迎通过左侧的链接访问github源码与我们一起将它改良完善。')
-st.warning('有任何问题可在评论区留言，我们在看到后会第一时间为您解决。')
+    st.markdown(
+        "[GitHub 源代码](https://github.com/JennieJisooBabe/Super_Resolution)"
+    )
